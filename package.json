@@ -1,0 +1,16 @@
+{
+  "name": "iptv-app",
+  "version": "1.0.0",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Free IPTV viewer with an admin panel for live-viewer tracking and channel allow/disallow control.",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}

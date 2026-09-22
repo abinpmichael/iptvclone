@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#0f1115" />
+<title>IPTV Admin</title>
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+<div id="loginScreen" class="login-screen">
+  <form id="loginForm" class="login-card">
+    <div class="brand"><span class="logo">⚙</span><span class="title">Admin Login</span></div>
+    <input id="password" type="password" placeholder="Admin password" autocomplete="current-password" required />
+    <button type="submit">Sign in</button>
+    <div id="loginError" class="login-error"></div>
+  </form>
+</div>
+
+<div id="adminApp" class="admin-app" hidden>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">⚙</span>
+      <span class="title">IPTV Admin</span>
+    </div>
+    <div class="topbar-actions">
+      <a href="index.html" class="icon-btn" title="Back to viewer app">📺</a>
+      <button id="logoutBtn" class="icon-btn" title="Log out">⏻</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+
+    <section class="admin-section">
+      <div class="admin-section-head">
+        <h2>Who's watching</h2>
+        <span id="viewerCount" class="badge">0</span>
+      </div>
+      <div id="viewersEmpty" class="status-banner show">No one is watching anything right now.</div>
+      <table id="viewersTable" class="admin-table" hidden>
+        <thead>
+          <tr><th>Channel</th><th>Viewer</th><th>IP</th><th>Watching for</th><th>Last seen</th></tr>
+        </thead>
+        <tbody id="viewersBody"></tbody>
+      </table>
+    </section>
+
+    <section class="admin-section">
+      <div class="admin-section-head">
+        <h2>Channel access</h2>
+        <span id="disabledCount" class="badge">0 disabled</span>
+      </div>
+      <div class="admin-toolbar">
+        <input id="channelSearch" type="search" placeholder="Search channels…" autocomplete="off" />
+        <label class="checkbox-label">
+          <input id="disabledOnly" type="checkbox" />
+          Show disabled only
+        </label>
+      </div>
+      <div id="channelStatus" class="status-banner"></div>
+      <div id="channelResultCount" class="result-count"></div>
+      <div id="channelList" class="admin-channel-list"></div>
+      <button id="loadMoreChannels" class="load-more" hidden>Show more channels</button>
+    </section>
+
+  </main>
+</div>
+
+<script src="playlist.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

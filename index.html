@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0f1115" />
+<title>Free IPTV — Live TV</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📺</text></svg>" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">📺</span>
+      <span class="title">Free IPTV</span>
+    </div>
+    <div class="search-wrap">
+      <input id="search" type="search" placeholder="Search channels, country, language…" autocomplete="off" />
+    </div>
+    <div class="topbar-actions">
+      <a href="admin.html" class="icon-btn" title="Admin panel" aria-label="Admin panel">⚙</a>
+      <button id="menuToggle" class="icon-btn" title="Categories" aria-label="Toggle categories">☰</button>
+    </div>
+  </header>
+
+  <div class="body">
+
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-section">
+        <button class="cat-item active" data-cat="__all__">All Channels</button>
+        <button class="cat-item" data-cat="__fav__">★ Favorites <span id="favCount" class="badge">0</span></button>
+        <button class="cat-item" data-cat="__club__">🎬 Video Club</button>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-heading">Categories</div>
+        <div id="categoryList" class="category-list"></div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-heading">Languages</div>
+        <button class="cat-item lang-item active" data-lang="__any__">All Languages</button>
+        <div id="languageList" class="category-list"></div>
+      </div>
+    </aside>
+
+    <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+    <main class="content">
+
+      <section id="player-section" class="player-section">
+        <div class="player-wrap">
+          <video id="video" controls playsinline></video>
+          <div id="playerPlaceholder" class="player-placeholder">
+            <div>📡</div>
+            <p>Pick a channel to start streaming</p>
+          </div>
+          <div id="playerStatus" class="player-status"></div>
+        </div>
+        <div class="now-playing">
+          <img id="npLogo" class="np-logo" alt="" />
+          <div class="np-meta">
+            <div id="npName" class="np-name">No channel selected</div>
+            <div id="npGroup" class="np-group"></div>
+          </div>
+          <button id="npFav" class="icon-btn fav-btn" title="Toggle favorite">☆</button>
+        </div>
+      </section>
+
+      <section class="list-section">
+        <h2 id="sectionTitle" class="section-title" hidden>🎬 Video Club <span class="section-subtitle">Movie channels</span></h2>
+        <div class="list-toolbar">
+          <span id="resultCount" class="result-count"></span>
+          <select id="sortSelect">
+            <option value="name">Sort: Name (A–Z)</option>
+            <option value="group">Sort: Category</option>
+          </select>
+        </div>
+        <div id="status" class="status-banner"></div>
+        <div id="channelGrid" class="channel-grid"></div>
+        <button id="loadMore" class="load-more" hidden>Show more channels</button>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
+<script src="playlist.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
