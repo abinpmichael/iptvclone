@@ -71,7 +71,7 @@
     e.preventDefault();
     el.loginError.textContent = "";
     try {
-      const res = await fetch("/api/admin/login", {
+      const res = await fetch("api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: el.password.value }),
@@ -94,7 +94,7 @@
 
   el.logoutBtn.addEventListener("click", async () => {
     try {
-      await apiFetch("/api/admin/logout", { method: "POST" });
+      await apiFetch("api/admin/logout", { method: "POST" });
     } catch {
       /* ignore */
     }
@@ -114,7 +114,7 @@
 
   async function pollViewers() {
     try {
-      const res = await apiFetch("/api/admin/viewers");
+      const res = await apiFetch("api/admin/viewers");
       const data = await res.json();
       renderViewers(data.viewers || []);
     } catch {
@@ -183,7 +183,7 @@
 
   async function loadLanguages() {
     try {
-      const res = await fetch("/api/languages");
+      const res = await fetch("api/languages");
       const data = await res.json();
       languageNames = data.names || {};
       const channelLanguages = data.channels || {};
@@ -202,7 +202,7 @@
 
   async function loadDisabledList() {
     try {
-      const res = await fetch("/api/disabled");
+      const res = await fetch("api/disabled");
       const data = await res.json();
       disabledChannels = new Set(data.disabled || []);
       el.disabledCount.textContent = disabledChannels.size + " disabled";
@@ -284,7 +284,7 @@
     const action = isDisabled ? "enable" : "disable";
     toggleBtn.disabled = true;
     try {
-      await apiFetch("/api/admin/" + action, {
+      await apiFetch("api/admin/" + action, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: ch.url }),

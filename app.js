@@ -104,7 +104,7 @@
 
   async function refreshDisabled() {
     try {
-      const res = await fetch("/api/disabled");
+      const res = await fetch("api/disabled");
       const data = await res.json();
       const next = new Set(data.disabled || []);
       const changed =
@@ -187,7 +187,7 @@
 
   async function loadLanguages() {
     try {
-      const res = await fetch("/api/languages");
+      const res = await fetch("api/languages");
       const data = await res.json();
       languageNames = data.names || {};
       const channelLanguages = data.channels || {};
@@ -417,7 +417,7 @@
 
   async function sendHeartbeat(ch) {
     try {
-      const res = await fetch("/api/heartbeat", {
+      const res = await fetch("api/heartbeat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ viewerId, channelUrl: ch.url, channelName: ch.name }),
@@ -446,7 +446,7 @@
     if (!currentChannel) return;
     try {
       navigator.sendBeacon(
-        "/api/leave",
+        "api/leave",
         new Blob([JSON.stringify({ viewerId })], { type: "application/json" })
       );
     } catch {
