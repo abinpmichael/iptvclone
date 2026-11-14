@@ -208,7 +208,7 @@ const TMDB_KEY = process.env.TMDB_API_KEY || "";
 const TMDB_REGION = process.env.TMDB_REGION || "US";
 const TMDB_BASE = process.env.TMDB_API_BASE || "https://api.themoviedb.org/3";
 const CINEMA_CACHE_MS = 6 * 60 * 60 * 1000;
-let cinemaCache = { at: 0, movies: null };
+const cinemaCache = new Map(); // "" (now playing in region) or a language code -> { at, movies }
 const trailerCache = new Map();
 
 async function tmdbGet(pathname, params = {}) {
@@ -223,15 +223,31 @@ async function tmdbGet(pathname, params = {}) {
   return res.json();
 }
 
-async function loadNowPlaying() {
-  if (cinemaCache.movies && Date.now() - cinemaCache.at < CINEMA_CACHE_MS) {
-    return cinemaCache.movies;
-  }
-  const pages = await Promise.all(
-    [1, 2].map((page) =>
-      tmdbGet("/movie/now_playing", { region: TMDB_REGION, language: "en-US", page })
-    )
-  );
+function isoDay(offsetDays) {
+  return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
+}
+
+// lang === "": what is playing in TMDB_REGION right now.
+// lang === "ml" etc.: recent worldwide releases whose original language matches,
+// newest first (so e.g. new Malayalam films show even if not showing locally).
+async function loadCinemaList(lang) {
+  const cached = cinemaCache.get(lang);
+  if (cached && Date.now() - cached.at < CINEMA_CACHE_MS) return cached.movies;
+
+  const fetchPage = (page) =>
+    lang
+      ? tmdbGet("/discover/movie", {
+          with_original_language: lang,
+          sort_by: "primary_release_date.desc",
+          "primary_release_date.gte": isoDay(-150),
+          "primary_release_date.lte": isoDay(21),
+          include_adult: "false",
+          language: "en-US",
+          page,
+        })
+      : tmdbGet("/movie/now_playing", { region: TMDB_REGION, language: "en-US", page });
+
+  const pages = await Promise.all([1, 2].map(fetchPage));
   const movies = pages
     .flatMap((p) => p.results || [])
     .map((m) => ({
@@ -242,7 +258,7 @@ async function loadNowPlaying() {
       overview: m.overview || "",
       rating: m.vote_average ? Math.round(m.vote_average * 10) / 10 : 0,
     }));
-  cinemaCache = { at: Date.now(), movies };
+  cinemaCache.set(lang, { at: Date.now(), movies });
   return movies;
 }
 
@@ -266,7 +282,9 @@ app.get("/api/cinema", async (req, res) => {
       if (!/^\d+$/.test(String(req.query.id))) return res.status(400).json({ error: "Bad id" });
       return res.json(await loadTrailer(String(req.query.id)));
     }
-    res.json({ configured: true, region: TMDB_REGION, movies: await loadNowPlaying() });
+    const lang = String(req.query.lang || "");
+    if (lang && !/^[a-z]{2}$/.test(lang)) return res.status(400).json({ error: "Bad language" });
+    res.json({ configured: true, region: TMDB_REGION, lang, movies: await loadCinemaList(lang) });
   } catch (err) {
     console.error("Cinema lookup failed:", err.message);
     res.status(502).json({ configured: true, error: "Couldn't reach TMDB right now." });

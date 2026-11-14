@@ -23,7 +23,21 @@ const VideoClub = (() => {
   let sort = SORTS[0].value;
   let genre = "";
   let films = { items: [], page: 0, total: 0, loading: false, key: "" };
-  let cinema = { loaded: false, loading: false };
+  const LANG_KEY = "iptv_cinema_lang";
+  const CINEMA_LANGS = [
+    ["", "Now playing in my country"],
+    ["ml", "Malayalam"], ["hi", "Hindi"], ["ta", "Tamil"], ["te", "Telugu"], ["kn", "Kannada"],
+    ["en", "English"], ["ko", "Korean"], ["ja", "Japanese"], ["es", "Spanish"], ["fr", "French"],
+    ["pa", "Punjabi"], ["bn", "Bengali"], ["mr", "Marathi"], ["zh", "Chinese"],
+  ];
+  let cinemaLang = "";
+  try {
+    const saved = localStorage.getItem(LANG_KEY);
+    if (CINEMA_LANGS.some(([c]) => c === saved)) cinemaLang = saved;
+  } catch {
+    /* storage unavailable */
+  }
+  let cinema = { byLang: {}, loading: false };
 
   const q = (id) => document.getElementById(id);
   const el = {};
@@ -33,6 +47,9 @@ const VideoClub = (() => {
     el.tabs = q("clubTabs");
     el.panel = q("clubPanel");
     el.filters = q("clubFilters");
+    el.cinemaFilters = q("cinemaFilters");
+    el.cinemaLang = q("cinemaLang");
+    el.cinemaHint = q("cinemaHint");
     el.sort = q("clubSort");
     el.genre = q("clubGenre");
     el.status = q("clubStatus");
@@ -53,6 +70,17 @@ const VideoClub = (() => {
     el.genre.addEventListener("change", () => {
       genre = el.genre.value;
       resetFilms();
+    });
+    for (const [code, label] of CINEMA_LANGS) el.cinemaLang.add(new Option(label, code));
+    el.cinemaLang.value = cinemaLang;
+    el.cinemaLang.addEventListener("change", () => {
+      cinemaLang = el.cinemaLang.value;
+      try {
+        localStorage.setItem(LANG_KEY, cinemaLang);
+      } catch {
+        /* storage unavailable */
+      }
+      render();
     });
     el.more.addEventListener("click", () => loadFilms(false));
   }
@@ -83,12 +111,13 @@ const VideoClub = (() => {
   // is open on a non-channels tab. Only fetches when there is nothing loaded.
   function render() {
     el.filters.hidden = tab !== "films";
+    el.cinemaFilters.hidden = tab !== "cinema";
     if (tab === "films") {
       if (films.items.length === 0 && !films.loading) loadFilms(true);
       else paintFilms();
     } else if (tab === "cinema") {
       el.more.hidden = true;
-      if (!cinema.loaded && !cinema.loading) loadCinema();
+      if (!cinema.byLang[cinemaLang] && !cinema.loading) loadCinema();
       else paintCinema();
     }
   }
@@ -185,24 +214,30 @@ const VideoClub = (() => {
   // ---- Now in cinemas (TMDB trailers through the backend) ----
 
   async function loadCinema() {
+    const lang = cinemaLang;
     cinema.loading = true;
-    setStatus("Loading films now in cinemas…");
+    el.grid.innerHTML = "";
+    setStatus("Loading films…");
     try {
-      const res = await fetch("api/cinema");
-      const data = await res.json();
-      cinema = { loaded: true, loading: false, data };
+      const res = await fetch("api/cinema" + (lang ? "?lang=" + encodeURIComponent(lang) : ""));
+      cinema.byLang[lang] = await res.json();
     } catch {
-      cinema = { loaded: false, loading: false };
+      cinema.loading = false;
       setStatus("Couldn't reach the server for cinema listings.");
       return;
     }
-    paintCinema();
+    cinema.loading = false;
+    if (tab === "cinema") render(); // repaint, or reload if the language changed meanwhile
   }
 
   function paintCinema() {
     el.grid.innerHTML = "";
-    const data = cinema.data;
+    const data = cinema.byLang[cinemaLang];
     if (!data) return;
+    const langName = (CINEMA_LANGS.find(([c]) => c === cinemaLang) || [])[1] || "";
+    el.cinemaHint.textContent = cinemaLang
+      ? `Recent ${langName} releases worldwide, newest first.`
+      : `Currently in cinemas${data.region ? " in " + data.region : ""}.`;
     if (data.configured === false) {
       setStatus(
         "Cinema listings need a free TMDB API key. Set TMDB_API_KEY (Node) or tmdb_api_key in config.php (PHP), then reload."
@@ -210,20 +245,22 @@ const VideoClub = (() => {
       return;
     }
     if (data.error || !Array.isArray(data.movies)) {
+      delete cinema.byLang[cinemaLang]; // allow a retry next time
       setStatus(data.error || "Cinema listings are unavailable right now.");
       return;
     }
-    setStatus(data.movies.length ? "" : "No films found.");
+    setStatus(data.movies.length ? "" : `No recent ${langName} releases found.`);
     const frag = document.createDocumentFragment();
     for (const m of data.movies) {
-      const card = buildCard({
-        poster: m.poster,
-        title: m.title,
-        sub: [m.release, m.rating ? "★ " + m.rating : ""].filter(Boolean).join(" · "),
-        tooltip: m.overview,
-        onClick: () => playTrailer(m),
-      });
-      frag.appendChild(card);
+      frag.appendChild(
+        buildCard({
+          poster: m.poster,
+          title: m.title,
+          sub: [m.release, m.rating ? "★ " + m.rating : ""].filter(Boolean).join(" · "),
+          tooltip: m.overview,
+          onClick: () => playTrailer(m),
+        })
+      );
     }
     el.grid.appendChild(frag);
   }

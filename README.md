@@ -30,7 +30,7 @@ Get a free API key at <https://www.themoviedb.org/settings/api>, then:
 - **PHP:** put it in `config.php` as `tmdb_api_key` (and set `tmdb_region`, e.g. `CA`, to pick the country).
 - **Node:** set `TMDB_API_KEY` (and optionally `TMDB_REGION`) environment variables.
 
-Without a key that tab shows a short setup message; everything else works. The key stays on the server — it is never sent to the browser. Listings are cached for 6 hours.
+Without a key that tab shows a short setup message; everything else works. The key stays on the server — it is never sent to the browser. Listings are cached for 6 hours. The tab has a language dropdown (Malayalam, Hindi, Tamil, Telugu, ...) that lists recent worldwide releases in that language, newest first; the default shows what is playing in your `tmdb_region`.
 
 Note: the Internet Archive films are public-domain/classic titles; current cinema releases can only be shown as trailers.
 

@@ -382,3 +382,4 @@ html, body {
   font-size: 13px;
 }
 .club-panel .status-banner { max-width: none; margin: 0 0 10px; }
+.club-hint { color: var(--text-dim); font-size: 12.5px; align-self: center; }

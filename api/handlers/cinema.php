@@ -44,16 +44,35 @@ if (isset($_GET['id'])) {
     json_response($result);
 }
 
+// lang === '': what is playing in the configured region right now.
+// lang === 'ml' etc.: recent worldwide releases whose original language matches,
+// newest first (so e.g. new Malayalam films show even if not showing locally).
+$lang = $_GET['lang'] ?? '';
+if ($lang !== '' && !preg_match('/^[a-z]{2}$/', $lang)) json_response(['error' => 'Bad language'], 400);
+
 $cache = read_json_file(CINEMA_CACHE_FILE, []);
-if (!empty($cache['movies']) && time() - ($cache['fetchedAt'] ?? 0) < CINEMA_CACHE_SECONDS && ($cache['region'] ?? '') === $region) {
-    json_response(['configured' => true, 'region' => $region, 'movies' => $cache['movies']]);
+$entry = $cache['lists'][$lang] ?? null;
+if ($entry && !empty($entry['movies']) && time() - $entry['fetchedAt'] < CINEMA_CACHE_SECONDS && ($entry['region'] ?? '') === $region) {
+    json_response(['configured' => true, 'region' => $region, 'lang' => $lang, 'movies' => $entry['movies']]);
 }
 
 $movies = [];
 foreach ([1, 2] as $page) {
-    $data = tmdb_get($base, $key, '/movie/now_playing', ['region' => $region, 'language' => 'en-US', 'page' => $page]);
+    if ($lang !== '') {
+        $data = tmdb_get($base, $key, '/discover/movie', [
+            'with_original_language' => $lang,
+            'sort_by' => 'primary_release_date.desc',
+            'primary_release_date.gte' => date('Y-m-d', strtotime('-150 days')),
+            'primary_release_date.lte' => date('Y-m-d', strtotime('+21 days')),
+            'include_adult' => 'false',
+            'language' => 'en-US',
+            'page' => $page,
+        ]);
+    } else {
+        $data = tmdb_get($base, $key, '/movie/now_playing', ['region' => $region, 'language' => 'en-US', 'page' => $page]);
+    }
     if ($data === null) {
-        if (!empty($cache['movies'])) json_response(['configured' => true, 'region' => $region, 'movies' => $cache['movies']]);
+        if ($entry && !empty($entry['movies'])) json_response(['configured' => true, 'region' => $region, 'lang' => $lang, 'movies' => $entry['movies']]);
         json_response(['configured' => true, 'error' => "Couldn't reach TMDB right now."], 502);
     }
     foreach ($data['results'] ?? [] as $m) {
@@ -68,8 +87,7 @@ foreach ([1, 2] as $page) {
     }
 }
 
-$cache['movies'] = $movies;
-$cache['region'] = $region;
-$cache['fetchedAt'] = time();
+$cache = read_json_file(CINEMA_CACHE_FILE, []);
+$cache['lists'][$lang] = ['movies' => $movies, 'region' => $region, 'fetchedAt' => time()];
 write_json_file(CINEMA_CACHE_FILE, $cache);
-json_response(['configured' => true, 'region' => $region, 'movies' => $movies]);
+json_response(['configured' => true, 'region' => $region, 'lang' => $lang, 'movies' => $movies]);
