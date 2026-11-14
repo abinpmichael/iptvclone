@@ -1,4 +1,4 @@
-const CACHE = "iptv-shell-v10";
+const CACHE = "iptv-shell-v11";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -25,12 +25,24 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Only cache the app shell; never intercept playlist/stream requests.
+// Network-first for the app's own files so an update is never hidden behind a
+// stale cached copy; the cache is only a fallback when offline. API calls and
+// cross-origin requests (playlist, streams) are never intercepted.
 self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) return;
+  const req = event.request;
+  const url = new URL(req.url);
+  if (req.method !== "GET" || url.origin !== self.location.origin) return;
+  if (url.pathname.includes("/api/")) return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    fetch(req)
+      .then((res) => {
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((cache) => cache.put(req, copy)).catch(() => {});
+        }
+        return res;
+      })
+      .catch(() => caches.match(req, { ignoreSearch: true }))
   );
 });

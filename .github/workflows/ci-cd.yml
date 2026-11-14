@@ -33,12 +33,15 @@ jobs:
 
       - name: Syntax check JavaScript
         run: |
-          for f in server.js sw.js playlist.js videoclub.js app.js admin.js tests/smoke.mjs; do
+          for f in server.js sw.js playlist.js videoclub.js app.js admin.js tests/smoke.mjs tests/sw-test.js; do
             node --check "$f"
           done
 
       - name: Syntax check PHP
         run: find . -name '*.php' -not -path './node_modules/*' -print0 | xargs -0 -n1 php -l
+
+      - name: Test service worker caching logic
+        run: node tests/sw-test.js sw.js
 
       - name: Smoke test Node backend
         run: |
