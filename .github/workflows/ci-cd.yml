@@ -1,0 +1,115 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint and smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+
+      - run: npm ci
+
+      - name: Syntax check JavaScript
+        run: |
+          for f in server.js sw.js playlist.js videoclub.js app.js admin.js tests/smoke.mjs; do
+            node --check "$f"
+          done
+
+      - name: Syntax check PHP
+        run: find . -name '*.php' -not -path './node_modules/*' -print0 | xargs -0 -n1 php -l
+
+      - name: Smoke test Node backend
+        run: |
+          PORT=8123 node server.js &
+          for i in $(seq 1 30); do curl -sf localhost:8123/api/disabled >/dev/null && break; sleep 1; done
+          node tests/smoke.mjs http://localhost:8123
+          kill %1
+
+      - name: Smoke test PHP backend
+        run: |
+          php -S localhost:8124 -t . tests/php-router.php &
+          for i in $(seq 1 30); do curl -sf localhost:8124/api/disabled >/dev/null && break; sleep 1; done
+          node tests/smoke.mjs http://localhost:8124
+          kill %1
+
+  deploy:
+    name: Deploy to hosting (FTP)
+    needs: check
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    env:
+      FTP_SERVER: ${{ secrets.FTP_SERVER }}
+    steps:
+      - name: Skip notice
+        if: env.FTP_SERVER == ''
+        run: echo "::notice::Deploy skipped - add the FTP_SERVER, FTP_USERNAME, FTP_PASSWORD and FTP_SERVER_DIR repository secrets to enable it (see README, CI/CD)."
+
+      - uses: actions/checkout@v4
+        if: env.FTP_SERVER != ''
+
+      # Hosting/CDN caches .js/.css for 7 days, so tie asset URLs and the
+      # service-worker cache name to this commit. Applied to the deploy copy only.
+      - name: Stamp cache-busting version
+        if: env.FTP_SERVER != ''
+        run: |
+          V=$(git rev-parse --short=8 HEAD)
+          sed -i -E "s/\?v=[0-9A-Za-z]+/?v=${V}/g" index.html admin.html
+          sed -i -E "s/iptv-shell-[0-9A-Za-z]+/iptv-shell-${V}/" sw.js
+          grep -n "?v=" index.html | head -3
+
+      - name: Upload via FTP
+        if: env.FTP_SERVER != ''
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
+          # Never touch server-side state or secrets: data/ and config.local.php
+          # are excluded, and they were never uploaded by this action so its
+          # clean-up of removed files can't delete them either.
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            .github/**
+            tests/**
+            data/**
+            config.local.php
+            server.js
+            package.json
+            package-lock.json
+            render.yaml
+            README.md
+
+      - name: Post-deploy check
+        if: env.FTP_SERVER != '' && vars.SITE_URL != ''
+        run: |
+          sleep 5
+          curl -fsS "${{ vars.SITE_URL }}api/disabled"

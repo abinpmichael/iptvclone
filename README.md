@@ -86,3 +86,23 @@ This repo includes a `render.yaml` for a one-click deploy:
 Notes on the free tier:
 - The service spins down after inactivity and takes ~30–60s to wake up on the next visit.
 - The free plan has no persistent disk, so the disabled-channels list resets on redeploy/restart. Add a paid persistent disk mounted at `/data` if you need that to survive restarts.
+
+## CI/CD (GitHub Actions)
+
+`.github/workflows/ci-cd.yml` runs on every push and pull request:
+
+1. **Check** — syntax-checks all JS and PHP, then starts both backends (Node and PHP) and runs `tests/smoke.mjs` against each (login, viewer tracking, disable/enable, etc.). Run it yourself with `node tests/smoke.mjs http://localhost:8123`.
+2. **Deploy** — on pushes to `main`, if the checks pass, uploads the site to your hosting over FTPS. It stamps asset URLs with the commit id so your host's 7-day cache can never serve stale files. It never uploads or deletes `data/` or `config.local.php`, so your settings and disabled-channel list are safe.
+
+To enable the deploy step, add these in GitHub → repo **Settings → Secrets and variables → Actions**:
+
+| Name | Type | Example |
+| --- | --- | --- |
+| `FTP_SERVER` | secret | `ftp.cognitioit.ca` (hPanel → Files → FTP Accounts) |
+| `FTP_USERNAME` | secret | your FTP username |
+| `FTP_PASSWORD` | secret | your FTP password |
+| `FTP_SERVER_DIR` | secret | `/public_html/iptv/` (must end with `/`; may be just `/` if the FTP account is already inside that folder) |
+| `SITE_URL` | variable (optional) | `https://cognitioit.ca/iptv/` — enables a post-deploy health check |
+| `FTP_PROTOCOL` | variable (optional) | `ftp` if your host rejects `ftps` (default is `ftps`) |
+
+Without the secrets the deploy job is skipped (checks still run). Create `config.local.php` on the server once, by hand — the pipeline deliberately never touches it.
