@@ -131,7 +131,12 @@ const VideoClub = (() => {
   }
 
   function filmsQuery() {
-    let query = "collection:feature_films AND mediatype:movies";
+    // Only titles that have a playable video file and aren't access-restricted;
+    // brand-new uploads are often still processing and would show a dead player.
+    let query =
+      "collection:feature_films AND mediatype:movies" +
+      ' AND (format:"h.264" OR format:MPEG4 OR format:"Ogg Video" OR format:WebM OR format:"512Kb MPEG4")' +
+      " AND NOT access-restricted-item:true";
     const words = search
       .replace(/[^\p{L}\p{N}\s'-]/gu, " ")
       .split(/\s+/)
@@ -236,7 +241,7 @@ const VideoClub = (() => {
     if (!data) return;
     const langName = (CINEMA_LANGS.find(([c]) => c === cinemaLang) || [])[1] || "";
     el.cinemaHint.textContent = cinemaLang
-      ? `Recent ${langName} releases worldwide, newest first.`
+      ? `Recent and upcoming ${langName} releases worldwide, newest first.`
       : `Currently in cinemas${data.region ? " in " + data.region : ""}.`;
     if (data.configured === false) {
       setStatus(
@@ -250,13 +255,17 @@ const VideoClub = (() => {
       return;
     }
     setStatus(data.movies.length ? "" : `No recent ${langName} releases found.`);
+    const today = new Date().toISOString().slice(0, 10);
     const frag = document.createDocumentFragment();
     for (const m of data.movies) {
+      const upcoming = m.release && m.release > today;
       frag.appendChild(
         buildCard({
           poster: m.poster,
           title: m.title,
-          sub: [m.release, m.rating ? "★ " + m.rating : ""].filter(Boolean).join(" · "),
+          sub: [upcoming ? "Coming " + m.release : m.release, m.rating ? "★ " + m.rating : ""]
+            .filter(Boolean)
+            .join(" · "),
           tooltip: m.overview,
           onClick: () => playTrailer(m),
         })

@@ -358,9 +358,13 @@ html, body {
   margin: 0 auto 14px;
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.club-tabs::-webkit-scrollbar { display: none; }
 .club-tab {
+  flex: 0 0 auto;
+  white-space: nowrap;
   background: var(--bg-elev-2);
   border: 1px solid var(--border);
   color: var(--text);
@@ -383,3 +387,15 @@ html, body {
 }
 .club-panel .status-banner { max-width: none; margin: 0 0 10px; }
 .club-hint { color: var(--text-dim); font-size: 12.5px; align-self: center; }
+
+/* Video Club grid: 2 columns on phones, consistent poster shape */
+.club-panel .channel-grid.video-club {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+.club-panel .channel-card-poster .ch-logo {
+  height: auto;
+  aspect-ratio: 2 / 3;
+}
+.club-panel .channel-card-poster .ch-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.club-filters select { flex: 1 1 140px; min-width: 0; max-width: 260px; }
