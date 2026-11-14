@@ -245,7 +245,7 @@ const VideoClub = (() => {
       : `Currently in cinemas${data.region ? " in " + data.region : ""}.`;
     if (data.configured === false) {
       setStatus(
-        "Cinema listings need a free TMDB API key. Set TMDB_API_KEY (Node) or tmdb_api_key in config.php (PHP), then reload."
+        "Cinema listings need a free TMDB API key. On PHP hosting put tmdb_api_key in config.local.php (copy config.local.php.example); on Node set TMDB_API_KEY. Then reload."
       );
       return;
     }
