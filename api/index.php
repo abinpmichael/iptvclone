@@ -18,6 +18,8 @@ $routes = [
     'POST /admin/enable' => 'admin_enable',
     'GET /languages' => 'languages',
     'GET /cinema' => 'cinema',
+    'GET /admin/settings' => 'admin_settings_get',
+    'POST /admin/settings' => 'admin_settings_save',
 ];
 
 $key = "$method $path";

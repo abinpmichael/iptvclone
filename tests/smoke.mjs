@@ -69,6 +69,34 @@ check("admin can re-enable the channel", r.status === 200);
 r = await call("GET", "/api/disabled");
 check("disabled list no longer includes it", !r.json?.disabled?.includes(testUrl));
 
+r = await call("GET", "/api/admin/settings");
+check("settings require auth (401)", r.status === 401);
+r = await call("POST", "/api/admin/settings", { body: { tmdb_region: "CA" } });
+check("saving settings requires auth (401)", r.status === 401);
+
+r = await call("GET", "/api/admin/settings", { token });
+check(
+  "admin can read settings without the key itself",
+  r.status === 200 && typeof r.json?.tmdbKeySet === "boolean" && !/[A-Za-z0-9]{20,}/.test(JSON.stringify(r.json))
+);
+const originalRegion = r.json?.tmdbRegion || "US";
+
+r = await call("POST", "/api/admin/settings", { body: { tmdb_api_key: "not a valid key!" }, token });
+check("malformed TMDB key rejected (400)", r.status === 400);
+r = await call("POST", "/api/admin/settings", { body: { tmdb_region: "zz9" }, token });
+check("bad region rejected (400)", r.status === 400);
+r = await call("POST", "/api/admin/settings", { body: { tmdb_region: "ca" }, token });
+check("region saved", r.status === 200);
+r = await call("GET", "/api/admin/settings", { token });
+check("region reads back upper-cased", r.json?.tmdbRegion === "CA");
+await call("POST", "/api/admin/settings", { body: { tmdb_region: originalRegion }, token });
+
+for (const p of ["/data/tokens.php", "/data/settings.php", "/data/admin_tokens.json", "/data/viewers.json", "/data/settings.json"]) {
+  const res = await fetch(base + p);
+  const text = await res.text();
+  check(`${p} is not downloadable`, (res.status === 404 || res.status === 403) && !text.includes(token));
+}
+
 await call("POST", "/api/leave", { body: { viewerId } });
 r = await call("GET", "/api/cinema");
 check("cinema endpoint answers (configured flag present)", r.status === 200 && "configured" in (r.json || {}));

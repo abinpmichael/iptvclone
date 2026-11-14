@@ -94,8 +94,8 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: ${{ secrets.FTP_SERVER_DIR }}
           protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
-          # Never touch server-side state or secrets: data/ and config.local.php
-          # are excluded, and they were never uploaded by this action so its
+          # Never touch server-side state or secrets: the files in data/ and
+          # config.local.php are excluded (data/.htaccess is deployed), and they were never uploaded by this action so its
           # clean-up of removed files can't delete them either.
           exclude: |
             **/.git*
@@ -103,7 +103,8 @@ jobs:
             **/node_modules/**
             .github/**
             tests/**
-            data/**
+            data/*.json
+            data/*.php
             config.local.php
             server.js
             package.json

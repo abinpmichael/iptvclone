@@ -8,7 +8,7 @@ if ($password !== $GLOBALS['config']['admin_password']) {
 
 $token = bin2hex(random_bytes(24));
 $tokens = read_json_file(TOKENS_FILE, []);
-$tokens[$token] = time() + TOKEN_TTL_SECONDS;
+$tokens[hash('sha256', $token)] = time() + TOKEN_TTL_SECONDS;
 write_json_file(TOKENS_FILE, $tokens);
 
 json_response(['token' => $token]);

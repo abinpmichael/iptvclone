@@ -23,6 +23,12 @@
     channelResultCount: document.getElementById("channelResultCount"),
     channelList: document.getElementById("channelList"),
     loadMoreChannels: document.getElementById("loadMoreChannels"),
+    settingsForm: document.getElementById("settingsForm"),
+    tmdbKey: document.getElementById("tmdbKey"),
+    tmdbKeyState: document.getElementById("tmdbKeyState"),
+    tmdbRegion: document.getElementById("tmdbRegion"),
+    clearTmdbKey: document.getElementById("clearTmdbKey"),
+    settingsMsg: document.getElementById("settingsMsg"),
   };
 
   let token = localStorage.getItem(TOKEN_KEY) || "";
@@ -323,7 +329,62 @@
     };
   }
 
+  // --- Settings (TMDB key / region) ---
+
+  function setSettingsMsg(text, isError) {
+    el.settingsMsg.textContent = text || "";
+    el.settingsMsg.classList.toggle("error", !!isError);
+  }
+
+  async function loadSettings() {
+    try {
+      const res = await apiFetch("api/admin/settings");
+      const s = await res.json();
+      el.tmdbKeyState.textContent = s.tmdbKeySet
+        ? `Key saved (${s.tmdbKeyHint}) — from ${s.tmdbKeySource}.`
+        : "No key set — the Now in cinemas tab will show a setup message.";
+      el.tmdbRegion.value = s.tmdbRegion || "";
+    } catch {
+      /* 401 already redirected to login */
+    }
+  }
+
+  async function saveSettings(payload, okMessage) {
+    setSettingsMsg("Saving…");
+    try {
+      const res = await apiFetch("api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSettingsMsg(data.error || "Couldn't save settings.", true);
+        return;
+      }
+      el.tmdbKey.value = "";
+      setSettingsMsg(data.verified ? "Saved — TMDB accepted the key." : okMessage);
+      loadSettings();
+    } catch {
+      setSettingsMsg("Couldn't reach the server.", true);
+    }
+  }
+
+  el.settingsForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const payload = { tmdb_region: el.tmdbRegion.value };
+    if (el.tmdbKey.value.trim()) payload.tmdb_api_key = el.tmdbKey.value;
+    saveSettings(payload, "Settings saved.");
+  });
+
+  el.clearTmdbKey.addEventListener("click", () => {
+    if (confirm("Remove the key saved in the admin panel?")) {
+      saveSettings({ tmdb_api_key: "" }, "Saved key removed.");
+    }
+  });
+
   async function init() {
+    loadSettings();
     await loadDisabledList();
     startViewersPolling();
     loadChannels();

@@ -25,6 +25,8 @@ you only need to pick one.
 
 ## Optional: "Now in cinemas" (TMDB key)
 
+The easiest way: open `/admin.html`, scroll to **Settings**, paste your key and press Save. The key is checked against TMDB before it is stored and is never shown again (only its last 4 characters). The sections below are the alternative of setting it on the server.
+
 Get a free API key at <https://www.themoviedb.org/settings/api>, then:
 
 - **PHP:** put it in `config.local.php` as `tmdb_api_key` (and set `tmdb_region`, e.g. `CA`, to pick the country). See "Your settings" below.
@@ -106,3 +108,8 @@ To enable the deploy step, add these in GitHub → repo **Settings → Secrets a
 | `FTP_PROTOCOL` | variable (optional) | `ftp` if your host rejects `ftps` (default is `ftps`) |
 
 Without the secrets the deploy job is skipped (checks still run). Create `config.local.php` on the server once, by hand — the pipeline deliberately never touches it.
+
+## Security notes
+
+- **Change the default admin password** (`admin123`) in `config.local.php` / `ADMIN_PASSWORD` before going public.
+- Stored data (`data/`) is private: each file is a `.php` file that answers 404 if requested directly, admin session tokens are stored hashed, and `data/.htaccess` denies direct access as a second layer. The Node server refuses to serve `data/`, `server.js` and config files. `tests/smoke.mjs` checks this on every push.

@@ -5,6 +5,9 @@ const crypto = require("crypto");
 
 const app = express();
 app.use(express.json());
+// Never serve server-side files or stored data (settings, disabled list, ...).
+const PRIVATE_PATHS = /^\/(data|node_modules|tests|\.github|\.git)(\/|$)|^\/(server\.js|package(-lock)?\.json|config(\.local)?\.php(\.example)?|render\.yaml)$|^\/api\/(handlers|_lib\.php|index\.php)/i;
+app.use((req, res, next) => (PRIVATE_PATHS.test(req.path) ? res.status(404).end() : next()));
 app.use(express.static(__dirname));
 
 const DATA_DIR = path.join(__dirname, "data");
@@ -24,6 +27,19 @@ function saveDisabled() {
 }
 
 let disabledChannels = loadDisabled();
+
+const SETTINGS_FILE = path.join(DATA_DIR, "settings.json");
+function loadSettings() {
+  try {
+    return JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf8"));
+  } catch {
+    return {};
+  }
+}
+let settings = loadSettings();
+function saveSettings() {
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2), { mode: 0o600 });
+}
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
 const adminTokens = new Set();
@@ -202,21 +218,62 @@ app.get("/api/languages", (req, res) => {
   res.json(languageData);
 });
 
+// --- Admin settings (TMDB key / region) ---
+
+app.get("/api/admin/settings", requireAdmin, (req, res) => {
+  const key = tmdbKey();
+  res.json({
+    tmdbKeySet: !!key,
+    tmdbKeyHint: key ? "••••" + key.slice(-4) : "",
+    tmdbKeySource: !key ? "" : settings.tmdb_api_key ? "admin panel" : "server config",
+    tmdbRegion: tmdbRegion(),
+  });
+});
+
+app.post("/api/admin/settings", requireAdmin, async (req, res) => {
+  const body = req.body || {};
+  let verified = null;
+  if (Object.prototype.hasOwnProperty.call(body, "tmdb_api_key")) {
+    const k = String(body.tmdb_api_key || "").trim();
+    if (k) {
+      if (!/^[A-Za-z0-9._-]{16,2000}$/.test(k)) {
+        return res.status(400).json({ error: "That does not look like a TMDB key (letters, numbers, dots and dashes only)." });
+      }
+      try {
+        await tmdbGet("/configuration", {}, k);
+      } catch {
+        return res.status(400).json({ error: "TMDB rejected this key (or could not be reached). Check it and try again." });
+      }
+      verified = true;
+    }
+    settings.tmdb_api_key = k; // an empty string clears the admin-panel key
+  }
+  if (body.tmdb_region !== undefined) {
+    const r = String(body.tmdb_region).trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(r)) return res.status(400).json({ error: "Region must be a 2-letter country code, e.g. CA." });
+    settings.tmdb_region = r;
+  }
+  saveSettings();
+  cinemaCache.clear(); // so a new key/region takes effect now
+  res.json({ ok: true, verified });
+});
+
 // --- "Now in cinemas" listings + trailers (TMDB; needs a free API key) ---
 
-const TMDB_KEY = process.env.TMDB_API_KEY || "";
-const TMDB_REGION = process.env.TMDB_REGION || "US";
+const tmdbKey = () => settings.tmdb_api_key || process.env.TMDB_API_KEY || "";
+const tmdbRegion = () => settings.tmdb_region || process.env.TMDB_REGION || "US";
 const TMDB_BASE = process.env.TMDB_API_BASE || "https://api.themoviedb.org/3";
 const CINEMA_CACHE_MS = 6 * 60 * 60 * 1000;
 const cinemaCache = new Map(); // "" (now playing in region) or a language code -> { at, movies }
 const trailerCache = new Map();
 
-async function tmdbGet(pathname, params = {}) {
+async function tmdbGet(pathname, params = {}, keyOverride) {
+  const key = keyOverride || tmdbKey();
   const url = new URL(TMDB_BASE + pathname);
   const headers = {};
   // A v4 "read access token" is a long JWT; a v3 key is a short hex string.
-  if (TMDB_KEY.length > 60) headers.Authorization = "Bearer " + TMDB_KEY;
-  else url.searchParams.set("api_key", TMDB_KEY);
+  if (key.length > 60) headers.Authorization = "Bearer " + key;
+  else url.searchParams.set("api_key", key);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const res = await fetch(url, { headers });
   if (!res.ok) throw new Error("TMDB responded " + res.status);
@@ -245,7 +302,7 @@ async function loadCinemaList(lang) {
           language: "en-US",
           page,
         })
-      : tmdbGet("/movie/now_playing", { region: TMDB_REGION, language: "en-US", page });
+      : tmdbGet("/movie/now_playing", { region: tmdbRegion(), language: "en-US", page });
 
   const pages = await Promise.all([1, 2].map(fetchPage));
   const movies = pages
@@ -276,7 +333,7 @@ async function loadTrailer(id) {
 }
 
 app.get("/api/cinema", async (req, res) => {
-  if (!TMDB_KEY) return res.json({ configured: false });
+  if (!tmdbKey()) return res.json({ configured: false });
   try {
     if (req.query.id !== undefined) {
       if (!/^\d+$/.test(String(req.query.id))) return res.status(400).json({ error: "Bad id" });
@@ -284,7 +341,7 @@ app.get("/api/cinema", async (req, res) => {
     }
     const lang = String(req.query.lang || "");
     if (lang && !/^[a-z]{2}$/.test(lang)) return res.status(400).json({ error: "Bad language" });
-    res.json({ configured: true, region: TMDB_REGION, lang, movies: await loadCinemaList(lang) });
+    res.json({ configured: true, region: tmdbRegion(), lang, movies: await loadCinemaList(lang) });
   } catch (err) {
     console.error("Cinema lookup failed:", err.message);
     res.status(502).json({ configured: true, error: "Couldn't reach TMDB right now." });
@@ -295,7 +352,7 @@ const PORT = process.env.PORT || 8123;
 app.listen(PORT, () => {
   console.log(`IPTV server running at http://localhost:${PORT}`);
   console.log(`Admin panel at http://localhost:${PORT}/admin.html`);
-  if (!TMDB_KEY) {
+  if (!tmdbKey()) {
     console.log("TMDB_API_KEY not set — the Video Club 'Now in cinemas' tab will ask for a key.");
   }
   if (!process.env.ADMIN_PASSWORD) {
