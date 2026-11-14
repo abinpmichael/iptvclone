@@ -1,0 +1,8 @@
+<?php
+// Copy this file to config.local.php on your server and fill in your values.
+// Uploading a new version of the app will never overwrite config.local.php.
+return [
+    'admin_password' => 'choose-a-long-password',
+    'tmdb_api_key' => '',   // free key from https://www.themoviedb.org/settings/api
+    'tmdb_region' => 'CA',  // country for the default "now in cinemas" list
+];

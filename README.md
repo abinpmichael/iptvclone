@@ -27,7 +27,7 @@ you only need to pick one.
 
 Get a free API key at <https://www.themoviedb.org/settings/api>, then:
 
-- **PHP:** put it in `config.php` as `tmdb_api_key` (and set `tmdb_region`, e.g. `CA`, to pick the country).
+- **PHP:** put it in `config.local.php` as `tmdb_api_key` (and set `tmdb_region`, e.g. `CA`, to pick the country). See "Your settings" below.
 - **Node:** set `TMDB_API_KEY` (and optionally `TMDB_REGION`) environment variables.
 
 Without a key that tab shows a short setup message; everything else works. The key stays on the server — it is never sent to the browser. Listings are cached for 6 hours. The tab has a language dropdown (Malayalam, Hindi, Tamil, Telugu, ...) that lists recent worldwide releases in that language, newest first; the default shows what is playing in your `tmdb_region`.
@@ -38,9 +38,11 @@ Note: the Internet Archive films are public-domain/classic titles; current cinem
 
 Most cheap/shared hosting plans support this — no SSH or npm needed.
 
-1. Edit `config.php` and set your own admin password (or set an
-   `ADMIN_PASSWORD` environment variable if your host's control panel supports
-   one).
+1. Copy `config.local.php.example` to `config.local.php` on your server and set
+   your own admin password (and TMDB key). This file is never part of the
+   download, so uploading a new version won't overwrite your settings. (Or set
+   `ADMIN_PASSWORD` / `TMDB_API_KEY` environment variables if your host's
+   control panel supports them.)
 2. Upload everything **except** `server.js`, `package.json`,
    `package-lock.json`, `node_modules/`, and `render.yaml` to your host via
    FTP or the file manager (they're harmless to leave out — the PHP backend
