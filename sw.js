@@ -1,9 +1,10 @@
-const CACHE = "iptv-shell-v6";
+const CACHE = "iptv-shell-v7";
 const SHELL_FILES = [
   "./",
   "./index.html",
   "./style.css",
   "./playlist.js",
+  "./videoclub.js",
   "./app.js",
   "./manifest.json",
 ];

@@ -9,20 +9,6 @@ const B_TO_T_CODE = [
     'rum' => 'ron', 'slo' => 'slk', 'tib' => 'bod', 'wel' => 'cym',
 ];
 
-function fetch_url($url) {
-    $context = stream_context_create(['http' => ['timeout' => 25], 'https' => ['timeout' => 25]]);
-    $raw = @file_get_contents($url, false, $context);
-    if ($raw === false && function_exists('curl_init')) {
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 25);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        $raw = curl_exec($ch);
-        curl_close($ch);
-    }
-    return $raw === false ? null : $raw;
-}
-
 function fetch_language_data() {
     $feedsRaw = fetch_url('https://iptv-org.github.io/api/feeds.json');
     $langsRaw = fetch_url('https://iptv-org.github.io/api/languages.json');

@@ -98,3 +98,23 @@ function prune_viewers(&$viewers) {
     }
     return $changed;
 }
+
+function fetch_url($url, $headers = []) {
+    $context = stream_context_create([
+        'http' => ['timeout' => 25, 'header' => implode("
+", $headers)],
+        'https' => ['timeout' => 25, 'header' => implode("
+", $headers)],
+    ]);
+    $raw = @file_get_contents($url, false, $context);
+    if ($raw === false && function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 25);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        if ($headers) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        $raw = curl_exec($ch);
+        curl_close($ch);
+    }
+    return $raw === false ? null : $raw;
+}

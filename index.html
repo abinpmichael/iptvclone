@@ -7,7 +7,7 @@
 <title>Free IPTV — Live TV</title>
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📺</text></svg>" />
-<link rel="stylesheet" href="style.css?v=2" />
+<link rel="stylesheet" href="style.css?v=3" />
 </head>
 <body>
 <div id="app">
@@ -52,6 +52,7 @@
       <section id="player-section" class="player-section">
         <div class="player-wrap">
           <video id="video" controls playsinline></video>
+          <iframe id="embedFrame" title="Player" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen hidden></iframe>
           <div id="playerPlaceholder" class="player-placeholder">
             <div>📡</div>
             <p>Pick a channel to start streaming</p>
@@ -69,17 +70,33 @@
       </section>
 
       <section class="list-section">
-        <h2 id="sectionTitle" class="section-title" hidden>🎬 Video Club <span class="section-subtitle">Movie channels</span></h2>
-        <div class="list-toolbar">
-          <span id="resultCount" class="result-count"></span>
-          <select id="sortSelect">
-            <option value="name">Sort: Name (A–Z)</option>
-            <option value="group">Sort: Category</option>
-          </select>
+        <h2 id="sectionTitle" class="section-title" hidden>🎬 Video Club <span class="section-subtitle">Free films, cinema trailers &amp; movie channels</span></h2>
+        <div id="clubTabs" class="club-tabs" hidden>
+          <button class="club-tab active" data-tab="films">🎞 Newly added films</button>
+          <button class="club-tab" data-tab="cinema">🍿 Now in cinemas</button>
+          <button class="club-tab" data-tab="channels">📺 Movie channels</button>
         </div>
-        <div id="status" class="status-banner"></div>
-        <div id="channelGrid" class="channel-grid"></div>
-        <button id="loadMore" class="load-more" hidden>Show more channels</button>
+        <div id="channelsPane">
+          <div class="list-toolbar">
+            <span id="resultCount" class="result-count"></span>
+            <select id="sortSelect">
+              <option value="name">Sort: Name (A–Z)</option>
+              <option value="group">Sort: Category</option>
+            </select>
+          </div>
+          <div id="status" class="status-banner"></div>
+          <div id="channelGrid" class="channel-grid"></div>
+          <button id="loadMore" class="load-more" hidden>Show more channels</button>
+        </div>
+        <div id="clubPanel" class="club-panel" hidden>
+          <div id="clubFilters" class="club-filters">
+            <select id="clubSort" aria-label="Sort films"></select>
+            <select id="clubGenre" aria-label="Genre"></select>
+          </div>
+          <div id="clubStatus" class="status-banner"></div>
+          <div id="clubGrid" class="channel-grid video-club"></div>
+          <button id="clubMore" class="load-more" hidden>Show more films</button>
+        </div>
       </section>
 
     </main>
@@ -87,7 +104,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
-<script src="playlist.js?v=2"></script>
-<script src="app.js?v=2"></script>
+<script src="playlist.js?v=3"></script>
+<script src="videoclub.js?v=3"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>

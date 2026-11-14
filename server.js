@@ -202,10 +202,84 @@ app.get("/api/languages", (req, res) => {
   res.json(languageData);
 });
 
+// --- "Now in cinemas" listings + trailers (TMDB; needs a free API key) ---
+
+const TMDB_KEY = process.env.TMDB_API_KEY || "";
+const TMDB_REGION = process.env.TMDB_REGION || "US";
+const TMDB_BASE = process.env.TMDB_API_BASE || "https://api.themoviedb.org/3";
+const CINEMA_CACHE_MS = 6 * 60 * 60 * 1000;
+let cinemaCache = { at: 0, movies: null };
+const trailerCache = new Map();
+
+async function tmdbGet(pathname, params = {}) {
+  const url = new URL(TMDB_BASE + pathname);
+  const headers = {};
+  // A v4 "read access token" is a long JWT; a v3 key is a short hex string.
+  if (TMDB_KEY.length > 60) headers.Authorization = "Bearer " + TMDB_KEY;
+  else url.searchParams.set("api_key", TMDB_KEY);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  const res = await fetch(url, { headers });
+  if (!res.ok) throw new Error("TMDB responded " + res.status);
+  return res.json();
+}
+
+async function loadNowPlaying() {
+  if (cinemaCache.movies && Date.now() - cinemaCache.at < CINEMA_CACHE_MS) {
+    return cinemaCache.movies;
+  }
+  const pages = await Promise.all(
+    [1, 2].map((page) =>
+      tmdbGet("/movie/now_playing", { region: TMDB_REGION, language: "en-US", page })
+    )
+  );
+  const movies = pages
+    .flatMap((p) => p.results || [])
+    .map((m) => ({
+      id: m.id,
+      title: m.title,
+      poster: m.poster_path ? "https://image.tmdb.org/t/p/w342" + m.poster_path : "",
+      release: m.release_date || "",
+      overview: m.overview || "",
+      rating: m.vote_average ? Math.round(m.vote_average * 10) / 10 : 0,
+    }));
+  cinemaCache = { at: Date.now(), movies };
+  return movies;
+}
+
+async function loadTrailer(id) {
+  if (trailerCache.has(id)) return trailerCache.get(id);
+  const data = await tmdbGet(`/movie/${id}/videos`, { language: "en-US" });
+  const yt = (data.results || []).filter((v) => v.site === "YouTube");
+  const pick =
+    yt.find((v) => v.type === "Trailer" && v.official) ||
+    yt.find((v) => v.type === "Trailer") ||
+    yt.find((v) => v.type === "Teaser");
+  const result = pick ? { key: pick.key, name: pick.name } : { key: null };
+  trailerCache.set(id, result);
+  return result;
+}
+
+app.get("/api/cinema", async (req, res) => {
+  if (!TMDB_KEY) return res.json({ configured: false });
+  try {
+    if (req.query.id !== undefined) {
+      if (!/^\d+$/.test(String(req.query.id))) return res.status(400).json({ error: "Bad id" });
+      return res.json(await loadTrailer(String(req.query.id)));
+    }
+    res.json({ configured: true, region: TMDB_REGION, movies: await loadNowPlaying() });
+  } catch (err) {
+    console.error("Cinema lookup failed:", err.message);
+    res.status(502).json({ configured: true, error: "Couldn't reach TMDB right now." });
+  }
+});
+
 const PORT = process.env.PORT || 8123;
 app.listen(PORT, () => {
   console.log(`IPTV server running at http://localhost:${PORT}`);
   console.log(`Admin panel at http://localhost:${PORT}/admin.html`);
+  if (!TMDB_KEY) {
+    console.log("TMDB_API_KEY not set — the Video Club 'Now in cinemas' tab will ask for a key.");
+  }
   if (!process.env.ADMIN_PASSWORD) {
     console.log(`Using default admin password "admin123" — set ADMIN_PASSWORD env var to change it.`);
   }

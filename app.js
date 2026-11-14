@@ -16,6 +16,10 @@
     languageList: document.getElementById("languageList"),
     favCount: document.getElementById("favCount"),
     video: document.getElementById("video"),
+    embedFrame: document.getElementById("embedFrame"),
+    channelsPane: document.getElementById("channelsPane"),
+    clubTabs: document.getElementById("clubTabs"),
+    clubPanel: document.getElementById("clubPanel"),
     playerPlaceholder: document.getElementById("playerPlaceholder"),
     playerStatus: document.getElementById("playerStatus"),
     npLogo: document.getElementById("npLogo"),
@@ -236,6 +240,16 @@
   function renderGrid() {
     const isClub = activeCategory === "__club__";
     el.sectionTitle.hidden = !isClub;
+    el.clubTabs.hidden = !isClub;
+
+    const showChannels = !isClub || VideoClub.getTab() === "channels";
+    el.channelsPane.hidden = !showChannels;
+    el.clubPanel.hidden = showChannels;
+    if (!showChannels) {
+      VideoClub.render();
+      return;
+    }
+
     el.channelGrid.classList.toggle("video-club", isClub);
 
     el.channelGrid.innerHTML = "";
@@ -345,6 +359,7 @@
     }
 
     currentChannel = ch;
+    showVideoElement();
     el.playerPlaceholder.style.display = "none";
     el.npName.textContent = ch.name;
     el.npGroup.textContent = ch.group;
@@ -392,7 +407,44 @@
     startHeartbeat(ch);
   }
 
+  function showVideoElement() {
+    el.embedFrame.src = "about:blank";
+    el.embedFrame.hidden = true;
+    el.video.hidden = false;
+    el.npFav.style.visibility = "visible";
+  }
+
+  // Films (Internet Archive) and trailers (YouTube) play in an iframe instead
+  // of the <video> element, but share the now-playing bar and viewer tracking.
+  function playEmbed(item) {
+    if (disabledChannels.has(channelKey(item))) {
+      setPlayerStatus("This title has been disabled by the admin", "error");
+      return;
+    }
+    currentChannel = item;
+    if (hls) {
+      hls.destroy();
+      hls = null;
+    }
+    el.video.pause();
+    el.video.removeAttribute("src");
+    el.video.load();
+    el.video.hidden = true;
+    el.playerPlaceholder.style.display = "none";
+    setPlayerStatus("", "", false);
+    el.embedFrame.src = item.embed;
+    el.embedFrame.hidden = false;
+    el.npName.textContent = item.name;
+    el.npGroup.textContent = item.group;
+    el.npLogo.src = item.logo || fallbackLogo();
+    el.npLogo.onerror = () => (el.npLogo.src = fallbackLogo());
+    el.npFav.style.visibility = "hidden";
+    startHeartbeat(item);
+    document.getElementById("player-section").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
   function stopPlayback(message) {
+    el.embedFrame.src = "about:blank";
     stopHeartbeat();
     if (hls) {
       hls.destroy();
@@ -460,6 +512,10 @@
     clearTimeout(searchDebounce);
     searchDebounce = setTimeout(() => {
       searchTerm = el.search.value;
+      if (activeCategory === "__club__" && VideoClub.getTab() === "films") {
+        VideoClub.setSearch(searchTerm);
+        return;
+      }
       visibleCount = PAGE_SIZE;
       applyFilters();
     }, 150);
@@ -501,6 +557,8 @@
   el.sidebarOverlay.addEventListener("click", closeSidebar);
 
   el.favCount.textContent = favorites.size;
+
+  VideoClub.init({ onPlayEmbed: playEmbed, onTabChange: applyFilters });
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {

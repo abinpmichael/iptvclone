@@ -3,7 +3,10 @@
 A free IPTV viewer built on the [iptv-org](https://github.com/iptv-org/iptv) playlist, with:
 
 - Live channel browsing, search, favorites, and category/language filters
-- A "Video Club" section for movie-genre channels
+- A **Video Club** with three tabs:
+  - *Newly added films* — free, legal films from the [Internet Archive](https://archive.org/details/feature_films), newest first, with search, genre and sort filters (no setup needed)
+  - *Now in cinemas* — current cinema releases with posters and YouTube trailers (needs a free TMDB API key, see below)
+  - *Movie channels* — live movie-genre TV channels
 - An admin panel (`/admin.html`) showing who's currently watching what, and letting you enable/disable individual channels
 
 ## This needs a live backend — it will not work on GitHub Pages
@@ -19,6 +22,17 @@ whichever matches your hosting:
 The front-end (`index.html`, `app.js`, `admin.html`, `admin.js`, etc.) is
 identical either way — both backends expose the same `/api/...` routes, so
 you only need to pick one.
+
+## Optional: "Now in cinemas" (TMDB key)
+
+Get a free API key at <https://www.themoviedb.org/settings/api>, then:
+
+- **PHP:** put it in `config.php` as `tmdb_api_key` (and set `tmdb_region`, e.g. `CA`, to pick the country).
+- **Node:** set `TMDB_API_KEY` (and optionally `TMDB_REGION`) environment variables.
+
+Without a key that tab shows a short setup message; everything else works. The key stays on the server — it is never sent to the browser. Listings are cached for 6 hours.
+
+Note: the Internet Archive films are public-domain/classic titles; current cinema releases can only be shown as trailers.
 
 ## Option A: PHP hosting (shared hosting, cPanel, etc.)
 
